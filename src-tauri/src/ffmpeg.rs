@@ -129,9 +129,16 @@ pub async fn convert_to_gif(
         .arg("-i")
         .arg(&config.input_pattern);
 
-    // Video filters
+    // Single-pass filter with scaling, palette generation and application
+    // This preserves transparency by using split filter and reserve_transparent
     cmd.arg("-vf")
-        .arg(format!("scale={}:-1:flags=lanczos", config.width));
+        .arg(format!(
+            "scale={}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=1[p];[s1][p]paletteuse=alpha_threshold=128",
+            config.width
+        ));
+
+    // Disable GIF offsetting for proper transparency support
+    cmd.arg("-gifflags").arg("-offsetting");
 
     // Loop settings
     if config.loop_forever {
@@ -143,6 +150,21 @@ pub async fn convert_to_gif(
     // Output
     cmd.arg("-y") // Overwrite without asking
         .arg(&config.output_path);
+
+    // Debug: Write command to log file
+    let log_path = std::path::Path::new(&config.directory).join("ffmpeg_command.log");
+    let cmd_str = format!(
+        "ffmpeg -framerate {} -start_number {} -i \"{}\" -vf \"scale={}:-1:flags=lanczos,split[s0][s1];[s0]palettegen=reserve_transparent=1[p];[s1][p]paletteuse=alpha_threshold=128\" -gifflags -offsetting -loop {} -y \"{}\"\n\nDirectory: {}\nTimestamp: {:?}",
+        config.framerate,
+        config.start_number,
+        config.input_pattern,
+        config.width,
+        if config.loop_forever { "0" } else { "-1" },
+        config.output_path,
+        config.directory,
+        std::time::SystemTime::now()
+    );
+    let _ = std::fs::write(&log_path, cmd_str);
 
     // Stderr for progress
     cmd.stderr(Stdio::piped());
