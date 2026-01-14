@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rustc:*)",
+      "Bash(source $HOME/.cargo/env)",
+      "Bash(npm run tauri:*)"
+    ]
+  }
+}
